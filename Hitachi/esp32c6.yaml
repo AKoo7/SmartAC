@@ -1,0 +1,93 @@
+esphome:
+  name: esp32-c6
+  friendly_name: ESP32_C6
+
+esp32:
+  board: esp32-c6-devkitc-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "orkDigJL3I8ANpnrgODxeEmFmkCs0x9R/Vl/3AA3ISA="
+
+ota:
+  - platform: esphome
+    password: "aabf5ded69cf1d93bb4b26983ab73b2d"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32-C6 Fallback Hotspot"
+    password: "S0YFdKNNaNBg"
+
+captive_portal:
+
+
+uart:
+  id: hitachi_bus
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 9600
+  parity: ODD
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/lumixen/esphome-hlink-ac.git
+      ref: 2026.2.0
+    components: [hlink_ac]
+
+climate:
+  - platform: hlink_ac
+    name: "SNXXXXXX"
+    hvac_actions: true # Remove or set to false if you don't need HVAC actions.
+    supported_presets: # Presets are disabled by default. Remove this if your AC does not support Leave Home mode.
+      - AWAY
+    supported_swing_modes: # Could be removed if your AC does not support horizontal swinging. By default only vertical mode is exposed.
+      - "OFF"
+      - VERTICAL
+      - HORIZONTAL
+      - BOTH
+
+switch:
+  - platform: hlink_ac
+    remote_lock:
+      name: Remote Lock
+    beeper:
+      name: Beeper
+
+sensor:
+  - platform: hlink_ac
+    auto_target_temp_offset:
+      name: Auto Mode Temp Offset
+  - platform: hlink_ac
+    outdoor_temperature:
+      name: Outdoor Temperature # Available only when device is active
+
+binary_sensor:
+  - platform: hlink_ac
+    air_filter_warning:
+      name: Air Filter Cleaning Required
+
+button:
+  - platform: hlink_ac
+    reset_air_filter_warning:
+      name: "Reset Air Filter Warning"
+
+text_sensor:
+  - platform: hlink_ac
+    model_name:
+      name: Model
+
+number:
+  - platform: hlink_ac
+    auto_target_temperature_offset:
+      name: Auto Mode Temp Offset
