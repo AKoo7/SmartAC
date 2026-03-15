@@ -1,0 +1,323 @@
+esphome:
+  name: diakin
+  friendly_name: DIAKIN
+  devices:
+  - id: daikin_outdoor
+    name: "Daikin Compressor"
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "+s73xp0TWIpz1nvteLph9laopBWR+bT8JrGNYhva42Q="
+
+ota:
+  - platform: esphome
+    password: "736e7627d918f40f8eae9124bac1fa21"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Diakin Fallback Hotspot"
+    password: "Veeh7ObU2zKY"
+
+captive_portal:
+    
+#uart:
+#  id: hitachi_bus
+#  tx_pin: GPIO17
+#  rx_pin: GPIO16
+#  baud_rate: 9600
+#  parity: ODD
+
+
+
+external_components:
+  - source: github://asund/esphome-daikin-s21@main
+    components: [ daikin_s21 ]
+
+uart:
+  - id: s21_uart
+    tx_pin: GPIO02
+    rx_pin: GPIO03
+    baud_rate: 2400
+    data_bits: 8
+    parity: EVEN
+    stop_bits: 2
+  
+  - id: pzemac_bus
+    tx_pin: GPIO20
+    rx_pin: GPIO21
+    baud_rate: 9600
+    stop_bits: 1
+
+modbus:
+  - id: pzem_modbus
+    uart_id: pzemac_bus
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+# The parent UART communication hub platform.
+daikin_s21:
+  uart: s21_uart
+  # debug_protocol: true  # please enable when reporting logs!
+  # update_interval: 5s  # also supports periodic polling instead of more responsive free run
+
+climate:
+  - name: My Daikin
+    platform: daikin_s21
+    # Settings from ESPHome Climate component:
+    # Visual limits and steps can be adjusted to match the granularity of your external sensor:
+    # visual:
+    #   temperature_step:
+    #     target_temperature: 1
+    #     current_temperature: 0.5
+    # Settings from DaikinS21Climate:
+    # supported_modes:  # optional, restricts available modes. off is always supported.
+    #   - heat_cool
+    #   - cool
+    #   - heat
+    #   - dry
+    #   - fan_only
+    # supported_swing_modes:  # optional, restricts available swing modes. off is always supported.
+    #   - horizontal
+    #   - vertical
+    #   - both
+    # Optional sensors to use for temperature and humidity references
+    sensor: daikin_temperature  # Internal, see indoor temperature sensor below
+    # sensor: room_temp  # External, see homeassistant sensor below
+    humidity_sensor: daikin_humidity  # Internal, see humidity sensor below
+    # humidity_sensor: room_humidity  # External, see homeassistant sensor below
+    # or leave unconfigured if unsupported to omit reporting
+    # update_interval: 60s # Interval used to adjust the unit's setpoint using reference sensor
+    # Mode specific temperature parameters:
+    # heat_cool_mode:
+    #   offset: 0           # offset to apply to unit setpoint in this mode
+    #   min_temperature: 18 # minimum temperature to be sent to the unit in this mode, default probably fine
+    #   max_temperature: 30 # maximum temperature to be sent to the unit in this mode, default probably fine
+    # cool_mode:
+    #   offset: 0
+    #   min_temperature: 18
+    #   max_temperature: 32
+    # heat_mode:
+    #   offset: 0
+    #   min_temperature: 10
+    #   max_temperature: 30
+
+select:
+  - platform: daikin_s21
+    brightness:
+      name: LED Brightness
+    humidity:
+      name: Humidity
+    vertical_swing:
+      name: Vertical Swing
+
+sensor:
+  - platform: daikin_s21
+    update_interval: 0s
+    # setpoint_temperature: # Unit setpoint. provided for insight on climate adjustment but probably not useful for users.
+    #   name: Setpoint Temperature
+    #   filters:
+    #     - delta: 0.0
+    inside_temperature:
+      id: daikin_temperature
+      name: Inside Temperature
+      filters:
+        - delta: 0.0
+    # target_temperature: # unit control loop setpoint, taking mode modifiers into account. probably only useful when debugging.
+    #   name: Target Temperature
+    #   filters:
+    #     - delta: 0.0
+    outside_temperature:
+      name: Outside Temperature
+      device_id: daikin_outdoor
+      filters:
+        - delta: 0.0
+    coil_temperature:
+      name: Coil Temperature
+      # device_id: daikin_outdoor # values will be roughly the same on multiple indoor units, though they are independent measurements.
+      filters:
+        - delta: 0.0
+    fan_speed:
+      name: Fan Speed
+      filters:
+        - delta: 0.0
+    swing_vertical_angle:
+      name: Swing Vertical Angle
+      filters:
+        - delta: 0.0
+    compressor_frequency:
+      name: Compressor Frequency
+      device_id: daikin_outdoor
+      # unit_of_measurement: "RPM"  # if you would prefer RPM, uncomment the following
+      # device_class: ""  # override default "frequency", RPM is not a measurement of frequency in HA
+      filters:
+        # - multiply: 60.0
+        - delta: 0.0
+    humidity:
+      id: daikin_humidity
+      name: Humidity
+      filters:
+        - delta: 0.0
+    demand:
+      name: Demand  # 0-15 demand units by default, use filter to map to 100%
+      filters:
+        - multiply: !lambda return 100.0F / 15.0F;
+        - delta: 0.0
+    # Protocol Version 2:
+    ir_counter:
+      name: IR Counter
+      filters:
+        - delta: 0.0
+    energy:
+      name: Energy Consumption
+      device_id: daikin_outdoor
+      filters:
+        - delta: 0.0
+    outdoor_capacity:
+      name: Outdoor Capacity
+      device_id: daikin_outdoor
+      filters:
+        - delta: 0.0
+    # Protocol Version 3.20:
+    power:
+      name: Unit Power
+      filters:
+        - delta: 0.0
+    energy_cooling:
+      name: Energy Consumption Cooling
+      filters:
+        - delta: 0.0
+    energy_heating:
+      name: Energy Consumption Heating
+      filters:
+        - delta: 0.0
+  # optional external reference sensors
+  - platform: homeassistant
+    id: room_temp
+    entity_id: sensor.office_temperature
+    unit_of_measurement: °F
+    accuracy_decimals: 1
+  - platform: homeassistant
+    id: room_humidity
+    entity_id: sensor.office_humidity
+    unit_of_measurement: "%"
+    accuracy_decimals: 1
+    
+  # ------------------------
+  # PZEM ENERGY METER
+  # ------------------------
+  - platform: pzemac
+    modbus_id: pzem_modbus
+
+    voltage:
+      name: "Home Voltage"
+
+    current:
+      name: "Home Current"
+
+    power:
+      name: "Home Power"
+      id: power
+
+    energy:
+      name: "Total Energy"
+
+    frequency:
+      name: "Home Frequency"
+
+    power_factor:
+      name: "Home Power Factor"
+
+    update_interval: 5s
+
+  - platform: total_daily_energy
+    name: "Total Daily Energy"
+    unit_of_measurement: kWh
+    power_id: power
+    filters:
+      - multiply: 0.001
+
+switch:
+  - platform: daikin_s21
+    # F6 and F7 mode states, not always supported
+    powerful:
+      name: Powerful Mode Switch
+    comfort:
+      name: Comfort Mode Switch
+    quiet:
+      name: Quiet Mode Switch
+    streamer:
+      name: Streamer Mode Switch
+    led:
+      name: Sensor LED Switch
+    motion:
+      name: Sensor Mode Switch
+    econo:
+      name: Econo Mode Switch
+
+binary_sensor:
+  - platform: daikin_s21
+    # F6 and F7 mode states, not always supported
+    powerful:
+      name: Powerful Mode Sensor
+    comfort:
+      name: Comfort Mode Sensor
+    quiet:
+      name: Quiet Mode Sensor
+    streamer:
+      name: Streamer Mode Sensor
+    led:
+      name: Sensor LED Sensor
+    motion:
+      name: Sensor Mode Sensor
+    econo:
+      name: Econo Mode Sensor
+    # unit and system state bitfield derived, not always supported or reliable:
+    defrost:
+      name: Defrost
+    online:
+      name: Online
+    valve:
+      name: Valve
+    short_cycle:
+      name: Short Cycle
+      device_id: daikin_outdoor
+    system_defrost:
+      name: System Defrost
+      device_id: daikin_outdoor
+    multizone_conflict:
+      name: Multizone Conflict
+      device_id: daikin_outdoor
+    # serial_error:
+    #   name: Serial Error
+
+text_sensor:
+  - platform: daikin_s21
+    model:
+      name: Model
+    software_revision:
+      name: Software Revision
+    software_version:
+      name: Software Version
+    # raw case-sensitive query monitoring for debugging
+    # queries:
+    #   - RK
+
+number:
+  - platform: daikin_s21
+    demand:
+      name: Demand

@@ -1,0 +1,154 @@
+esphome:
+  name: esp32c31
+  friendly_name: ESP32C31
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "xxxx"
+
+ota:
+  - platform: esphome
+    password: "55a953b0030257df9d2ff6e2ce7f8a55"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  output_power: 8.5db
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Esp32C3 Fallback Hotspot"
+    password: "Sng9dRlKlYqa"
+
+captive_portal:
+
+
+uart:
+  - id: pzemac_bus
+    tx_pin: GPIO02
+    rx_pin: GPIO03
+    baud_rate: 9600
+    stop_bits: 1
+
+  - id: hitachi_bus
+    tx_pin: GPIO20
+    rx_pin: GPIO21
+    baud_rate: 9600
+    parity: ODD
+
+modbus:
+  - id: pzem_modbus
+    uart_id: pzemac_bus
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+
+# ------------------------
+# HITACHI AC COMPONENT
+# ------------------------
+external_components:
+  - source:
+      type: git
+      url: https://github.com/lumixen/esphome-hlink-ac.git
+      ref: 2026.2.0
+    components: [hlink_ac]
+
+# ------------------------
+# HITACHI AC CLIMATE
+# ------------------------
+climate:
+  - platform: hlink_ac
+    uart_id: hitachi_bus
+    name: "DC_INVERTER"
+    hvac_actions: true
+    supported_presets:
+      - AWAY
+    supported_swing_modes:
+      - "OFF"
+      - VERTICAL
+      - HORIZONTAL
+      - BOTH
+
+switch:
+  - platform: hlink_ac
+    remote_lock:
+      name: Remote Lock
+    beeper:
+      name: Beeper
+
+sensor:
+  # ------------------------
+  # HITACHI AC SENSORS
+  # ------------------------
+  - platform: hlink_ac
+    auto_target_temp_offset:
+      name: Auto Mode Temp Offset
+
+  - platform: hlink_ac
+    outdoor_temperature:
+      name: Outdoor Temperature
+
+  # ------------------------
+  # PZEM ENERGY METER
+  # ------------------------
+  - platform: pzemac
+    modbus_id: pzem_modbus
+
+    voltage:
+      name: "Home Voltage"
+
+    current:
+      name: "Home Current"
+
+    power:
+      name: "Home Power"
+      id: power
+
+    energy:
+      name: "Total Energy"
+
+    frequency:
+      name: "Home Frequency"
+
+    power_factor:
+      name: "Home Power Factor"
+
+    update_interval: 5s
+
+  - platform: total_daily_energy
+    name: "Total Daily Energy"
+    unit_of_measurement: kWh
+    power_id: power
+    filters:
+      - multiply: 0.001
+
+binary_sensor:
+  - platform: hlink_ac
+    air_filter_warning:
+      name: Air Filter Cleaning Required
+
+button:
+  - platform: hlink_ac
+    reset_air_filter_warning:
+      name: "Reset Air Filter Warning"
+
+text_sensor:
+  - platform: hlink_ac
+    model_name:
+      name: Model
+
+number:
+  - platform: hlink_ac
+    auto_target_temperature_offset:
+      name: Auto Mode Temp Offset
